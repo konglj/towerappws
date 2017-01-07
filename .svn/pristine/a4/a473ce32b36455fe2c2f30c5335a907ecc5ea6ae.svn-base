@@ -1,0 +1,348 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.bolion.tower.mapper.TowerMapper">
+
+	<select id="getTowers" parameterType="com.bolion.tower.bean.TowerPage"
+		resultType="com.bolion.tower.bean.Tower">
+		select * from (select *,ROW_NUMBER() OVER (ORDER BY
+
+		<if test="sort==0">
+			isfavourite desc,toweradddate desc
+		</if>
+		<if test="sort==1">
+			toweradddate desc
+		</if>
+		<if test="sort==2">
+			toweradddate asc
+		</if>
+		<if test="sort==3">
+			towerfee desc
+		</if>
+		<if test="sort==4">
+			towerfee asc
+		</if>
+
+		) as rank from
+		(
+		select
+		t.ID as towerid,
+		t.Tower_name as towername,
+		t.Tower_address as toweraddress,
+		y.Tower_type_img as towertypeimg,
+		t.Tower_fee as towerfee,
+		c.City_name as towercity,
+		d.Dis_name as
+		towerdistrict,
+		a.Area_name as towerarea,
+		case t.Tower_area
+		when 0 then c.City_name+'-'+d.Dis_name
+		else d.Dis_name+'-'+a.Area_name
+		end as towersection,
+		(select count(1) from
+		user_favourite_tower f where f.User_id=#{userid} and
+		f.Tower_id=t.ID)
+		as isfavourite,
+		t.Tower_add_date as toweradddate
+		from tower_tower_info t
+		left join tower_tower_type y on t.Tower_style=t.Tower_style and
+		t.Tower_type=y.ID
+		left join Tower_city c on c.City_id=t.Tower_city
+		left
+		join Tower_district d on d.Dis_id=t.Tower_district
+		left join tower_area
+		a on a.ID =t.Tower_area
+		where 1=1
+
+
+		and t.Tower_city=#{towercity}
+		<if test="towerdistrict!=null and towerdistrict!=0">
+			and t.Tower_district=#{towerdistrict}
+		</if>
+		<if test="towerpoint and towerpoint!=0">
+			and t.Tower_point=#{towerpoint}
+		</if>
+		<if test="towerarea!=null and towerarea!=0">
+			and t.Tower_area=#{towerarea}
+		</if>
+
+		<if test="towerpoint!=null and towerpoint!=0">
+			and t.tower_point=#{towerpoint}
+		</if>
+
+		<if test="towerlevel!=null">
+			and t.Tower_level in (
+			<foreach collection="towerlevel" item="level" separator=",">
+				#{level}
+			</foreach>
+			)
+		</if>
+		<if test="towername!=null and towername!=''">
+			and ( t.Tower_name like '%${towername}%' or
+			t.Tower_address like
+			'%${towername}%' or a.area_name like
+			'%${towername}%')
+		</if>
+		<if test="towerstyle!=null and towerstyle!=0">
+			and t.Tower_style=#{towerstyle}
+		</if>
+		and t.Tower_is_hb=0
+		and t.Tower_state=0
+		and t.Tower_visible=1
+
+		) w1)as tm
+		where tm.rank between
+		#{pageindex}*#{pagesize}-(#{pagesize}-1) and
+		#{pageindex}*#{pagesize}
+		;
+
+	</select>
+
+	<select id="getTowersCount" parameterType="com.bolion.tower.bean.TowerPage" resultType="int">
+		select 
+		CEILING((COUNT(1)+0.0)/#{pagesize})
+		from tower_tower_info t
+		left join tower_tower_type y on
+		t.Tower_style=t.Tower_style and
+		t.Tower_type=y.ID
+		left join Tower_city c
+		on c.City_id=t.Tower_city
+		left join Tower_district d on
+		d.Dis_id=t.Tower_district
+		left join tower_area a on a.ID =t.Tower_area
+		where 1=1
+
+		and t.Tower_city=#{towercity}
+		<if test="towerdistrict!=null and towerdistrict!=0">
+			and t.Tower_district=#{towerdistrict}
+		</if>
+		<if test="towerpoint and towerpoint!=0">
+			and t.Tower_point=#{towerpoint}
+		</if>
+		<if test="towerarea!=null and towerarea!=0">
+			and t.Tower_area=#{towerarea}
+		</if>
+
+		<if test="towerpoint!=null and towerpoint!=0">
+			and t.tower_point=#{towerpoint}
+		</if>
+
+		<if test="towerlevel!=null">
+			and t.Tower_level in (
+			<foreach collection="towerlevel" item="level" separator=",">
+				#{level}
+			</foreach>
+			)
+		</if>
+		<if test="towername!=null and towername!=''">
+			and ( t.Tower_name like '%${towername}%' or
+			t.Tower_address like
+			'%${towername}%' or a.area_name like
+			'%${towername}%')
+		</if>
+		<if test="towerstyle!=null and towerstyle!=0">
+			and t.Tower_style=#{towerstyle}
+		</if>
+		and t.Tower_is_hb=0
+		and t.Tower_state=0
+		and t.Tower_visible=1
+	</select>
+	<select id="getTowerInfo" parameterType="map"
+		resultType="com.bolion.tower.bean.TowerInfo">
+		select
+		t.Tower_name as towername,
+		t.Tower_address as toweraddress,
+		(select
+		count(1) from user_favourite_tower f where
+		f.user_id=#{userid} and
+		f.Tower_id=t.ID) as isfavourite,
+		p.Tower_type_img as towertypeimg,
+		t.Tower_fee as towerfee,
+		c.City_name
+		as towercity,
+		d.Dis_name as towerdistrict,
+		a.Area_name as towerarea,
+       case t.Tower_area
+		when 0 then c.City_name+'-'+d.Dis_name
+		else d.Dis_name+'-'+a.Area_name
+		end as towersection,
+		t.Tower_j as towergpsx,
+		t.Tower_w as towergpsy,
+		t.Tower_first_j as
+		towerfirstgpsx,
+		t.Tower_first_w as towerfirstgpsy,
+		t.Tower_second_j as
+		towersecondgpsx,
+		t.Tower_second_w as towersecondgpsy,
+		t.Tower_large as
+		towerlarge,
+		p.Tower_type_name as towertype,
+		t.Tower_info as towerinfo,
+		t.Tower_remark as towerremark,
+
+		t.Tower_manager as towermanager,
+		t.Tower_manager_name as
+		towermanagername,
+		t.Tower_manager_chat as towermanagerchat
+
+
+		from tower_tower_info t
+		left
+		join tower_area a on a.ID=t.Tower_area
+		left join tower_city c on
+		c.City_id=t.Tower_city
+		left join tower_district d on
+		d.dis_id=t.Tower_district
+		left join tower_tower_type p on
+		p.ID=t.Tower_type
+		where 1=1
+		and t.ID=#{towerid}
+		;
+	</select>
+
+	<insert id="insertFavourite" parameterType="map">
+		insert into
+		user_favourite_tower
+		(User_id,Tower_id)
+		values
+		(#{userid},#{towerid})
+		;
+	</insert>
+
+	<delete id="deleteFavourite" parameterType="map">
+		delete from
+		user_favourite_tower
+		where 1=1
+		and User_id=#{userid}
+		and
+		Tower_id=#{towerid}
+		;
+	</delete>
+
+
+
+	<select id="checkTowerReportExist" parameterType="int" resultType="int">
+		select count(1)
+		from data_report_tower
+		where Tower_id=#{towerid}
+	</select>
+
+	<insert id="insertTowerReport" parameterType="com.bolion.tower.bean.TowerReport">
+		insert into
+		data_report_tower
+		(Tower_id,View_count,Sale_count,Cancel_count,Time_count,Reject_count,Con_reject_count)
+		values
+		(#{towerid},#{viewcount},#{salecount},#{cancelcount},#{timecount},#{rejectcount},#{conrejectcount})
+		;
+
+
+	</insert>
+	<update id="upateTowerReport" parameterType="com.bolion.tower.bean.TowerReport">
+		update
+		data_report_tower
+		set
+		View_count=View_count+#{viewcount},
+		Sale_count=Sale_count+#{salecount},
+		Cancel_count=Cancel_count+#{cancelcount},
+		Time_count=Time_count+#{timecount},
+		Reject_count=Reject_count+#{rejectcount},
+		Con_reject_count=Con_reject_count+#{conrejectcount}
+		where Tower_id=#{towerid}
+		;
+
+
+	</update>
+	
+	<select id="getIndexOfferTowers" parameterType="map" resultType="com.bolion.tower.bean.TowerIndex">
+	  select
+        top(#{showcount})
+		t.ID as towerid,
+		t.Tower_name as towername,
+		t.Tower_address as toweraddress,
+		y.Tower_type_img as towertypeimg,
+		t.Tower_fee as towerfee,
+		case t.Tower_area
+		when 0 then c.City_name+'-'+d.Dis_name
+		else d.Dis_name+'-'+a.Area_name
+		end as towersection
+		
+		from tower_tower_info t
+		left join tower_tower_type y on t.Tower_style=t.Tower_style and t.Tower_type=y.ID
+		left join Tower_city c on c.City_id=t.Tower_city
+		left join Tower_district d on d.Dis_id=t.Tower_district
+		left join tower_area a on a.ID =t.Tower_area
+		left join data_report_tower r on r.Tower_id=t.ID
+		where 1=1
+		and t.Tower_is_hb=0
+		and t.Tower_state=0
+		and t.Tower_visible=1
+		and t.Tower_city=#{cityid}
+		order by r.View_count desc,t.Tower_fee desc,t.Tower_add_date desc
+	</select>
+	
+	<select id="getTowerBaseInfo" parameterType="int" resultType="com.bolion.tower.bean.TowerBaseInfo">
+	  select
+	  t.Tower_state as towerstate,
+	  t.Tower_city as towercity,
+	  t.Tower_fee as towerfee
+	  from tower_tower_info t
+	  where t.id=#{towerid}
+	</select>
+	
+	<update id="updateTowerState" parameterType="map">
+	  update tower_tower_info
+	  set Tower_state=#{state}
+	  where ID=#{towerid}
+	  ;
+	</update>
+
+	<select id="searchTowers" parameterType="map" resultType="com.bolion.tower.bean.TowerIndex">
+	    select
+        top(#{showcount})
+		t.ID as towerid,
+		t.Tower_name as towername,
+		t.Tower_address as toweraddress,
+		y.Tower_type_img as towertypeimg,
+		t.Tower_fee as towerfee,
+		case t.Tower_area
+		when 0 then c.City_name+'-'+d.Dis_name
+		else d.Dis_name+'-'+a.Area_name
+		end as towersection
+		
+		from tower_tower_info t
+		left join tower_tower_type y on t.Tower_style=t.Tower_style and t.Tower_type=y.ID
+		left join Tower_city c on c.City_id=t.Tower_city
+		left join Tower_district d on d.Dis_id=t.Tower_district
+		left join tower_area a on a.ID =t.Tower_area
+		left join data_report_tower r on r.Tower_id=t.ID
+		where 1=1 and t.Tower_state = 0 and t.Tower_is_hb=0 and t.Tower_visible=1
+		and t.Tower_city=#{cityid} 
+		and (t.Tower_name like '%${content}%' or t.Tower_address like '%${content}%' or d.Dis_name like '%${content}%' or a.Area_name like '%${content}%')
+		order by r.View_count desc,t.Tower_fee desc,t.Tower_add_date desc
+	</select>
+
+	<select id="searchbsTowers" parameterType="map" resultType="com.bolion.tower.bean.TowerIndex">
+	    select
+        top(#{showcount})
+		t.ID as towerid,
+		t.Tower_name as towername,
+		t.Tower_address as toweraddress,
+		y.Tower_type_img as towertypeimg,
+		t.Tower_fee as towerfee,
+		case t.Tower_area
+		when 0 then c.City_name+'-'+d.Dis_name
+		else d.Dis_name+'-'+a.Area_name
+		end as towersection
+		
+		from tower_tower_info t
+		left join tower_tower_type y on t.Tower_style=t.Tower_style and t.Tower_type=y.ID
+		left join Tower_city c on c.City_id=t.Tower_city
+		left join Tower_district d on d.Dis_id=t.Tower_district
+		left join tower_area a on a.ID =t.Tower_area
+		left join data_report_tower r on r.Tower_id=t.ID
+		where 1=1 and t.Tower_state = 0 and t.Tower_style = 1 and t.Tower_is_hb=0 and t.Tower_visible=1
+		and t.Tower_city=#{cityid} 
+		and (t.Tower_name like '%${content}%' or t.Tower_address like '%${content}%' or d.Dis_name like '%${content}%' or a.Area_name like '%${content}%')
+		order by r.View_count desc,t.Tower_fee desc,t.Tower_add_date desc
+	</select>
+	
+</mapper>

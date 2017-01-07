@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.bolion.user.mapper.UserMapper">
+	<select id="getUseridByPhone" parameterType="String" resultType="map">
+		select
+		id as userid,
+		User_state as userstate
+		from tower_user_info
+		where
+		User_tele=#{phone}
+		;
+	</select>
+
+	<insert id="insertUser" parameterType="map" keyProperty="id"
+		useGeneratedKeys="true">
+		insert into
+		tower_user_info
+		(User_tele,User_state,User_level,User_type,Add_time)
+		values
+		(#{usertele},1,1,6,GETDATE())
+		;
+
+	</insert>
+
+	<update id="updateUserInfo" parameterType="com.bolion.user.bean.User">
+		update tower_user_info
+		set
+		<if test="username!=null and username!=''">
+			User_name=#{username}
+		</if>
+		<if test="userold!=0">
+			User_old=#{userold}
+		</if>
+		<if test="usertele!=null and usertele!=''">
+			User_tele=#{usertele}
+		</if>
+		<if test="usersex!=0">
+			User_sex=#{usersex}
+		</if>
+		<if test="userbusiness!=0">
+			User_business=#{userbusiness}
+		</if>
+		<if test="userdistrict!=0 or usercity!=0">
+			User_district=#{userdistrict},
+			User_city=#{usercity}
+		</if>
+		<if test="usercompany!=null and usercompany!=''">
+			User_company=#{usercompany},
+			User_win_type=#{userwintype},
+			User_win_time=#{userwintime}
+		</if>
+		<if test="userteamtype!=null and userteamtype!=0">
+			User_team_type=#{userteamtype}
+		</if>
+		
+		where id=#{userid}
+		;
+	</update>
+
+	<update id="updateUserHeadImg" parameterType="com.bolion.user.bean.User">
+	update tower_user_info
+		set
+		  Wx_head_img=#{headimg}
+		where id=#{userid}
+	</update>
+	
+	<update id="updateUserTeamImg" parameterType="com.bolion.user.bean.User">
+	update tower_user_info
+		set
+		  User_team_img=#{userteamimg}
+		where id=#{userid}
+	</update>
+
+	<select id="getUserIndexInfo" parameterType="int"
+		resultType="com.bolion.user.bean.UserIndex">
+		select
+		a.User_name as name,
+		a.User_level as userlevel,
+		b.Get_now as getnow,
+		b.Getting_now as gettingnow,
+		b.Charge as charge,
+		b.All_geting as
+		allgetting,
+		b.Score as score,
+		a.Wx_head_img as img
+		from
+		tower_user_info a
+		left join tower_user_charge b on a.id=b.User_id
+		where 1=1
+		and
+		a.id=#{userid};
+	</select>
+	<select id="getUserInfo" parameterType="int"
+		resultType="com.bolion.user.bean.UserInfo">
+		select
+		u.wx_head_img as headimg,
+		u.User_name as username,
+		u.User_tele as usertele,
+		u.User_team_type as userteamtype,
+		case
+		u.User_team_type
+		when 1 then '个人'
+		when 2 then '企业'
+		end as userteamtypename,
+		u.User_team_img as userteamimg,
+		u.User_sex as usersex,
+		case u.User_sex
+		when 1 then '男'
+		when 2 then '女'
+		end as usersexname,
+		u.User_old as userold,
+		o.name as useroldname,
+		u.User_business as userbusiness,
+		b.businessname as userbusinessname,
+		u.User_company as usercompany,
+		u.User_verify_state as userverifystate,
+
+		u.User_district as userdistrict,
+		d.Dis_name as userdistrictame,
+		d.Dis_name as disname,
+		u.User_city as usercity,
+		u.User_verify_state as userverifystate,
+		c.City_name as cityname
+		from tower_user_info u
+		left join tower_user_old o on
+		o.oldid=u.User_old
+		left join tower_user_business b on
+		b.businessid=u.User_business
+		left join Tower_district d on
+		u.User_district=d.Dis_id
+		left join Tower_city c on
+		c.City_id=u.User_city
+		where 1=1
+
+		and u.id=#{userid}
+		;
+	</select>
+	
+	<insert id="insertUserCharge" parameterType="com.bolion.user.bean.UserChargeInfo">
+		insert into tower_user_charge
+		(User_id,Charge,Get_now,Getting_now,All_geting)
+		values
+		(#{userid},#{charge},#{getnow},#{gettingnow},#{allgetting});
+	</insert>
+	
+	<update id="updateUserCharge" parameterType="com.bolion.user.bean.UserChargeInfo">
+		update tower_user_charge
+		set
+		   Charge=Charge+#{charge},
+		   Get_now=Get_now+#{getnow},
+		   Getting_now=Getting_now+#{gettingnow},
+		   All_geting=All_geting+#{allgetting},
+		   Experience=Experience+#{experience},
+		   Score=Score+#{score}
+		 where User_id=#{userid};
+	 </update>
+	 
+	 <select id="getUserLevel" parameterType="int" resultType="map">
+	   select User_level as userlevel
+	   from tower_user_info
+	   where ID=#{userid}
+	   ;
+	 </select>
+	<select id="getUserBaseInfo" parameterType="int"
+		resultType="com.bolion.user.bean.UserBaseInfo">
+		select
+		u.User_name as username,
+		u.User_tele as usertele
+		from tower_user_info u
+		where u.ID=#{userid}
+		;
+	</select>
+	<update id="updateUserState" parameterType="map">
+	  update
+		tower_user_info
+		set
+		User_state = #{userstate}
+		where ID = #{userid};
+	</update>
+</mapper>

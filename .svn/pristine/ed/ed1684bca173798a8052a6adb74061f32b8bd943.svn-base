@@ -1,0 +1,336 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.bolion.money.mapper.MoneyMapper">
+
+	<select id="getMyMoney" parameterType="int"
+		resultType="com.bolion.money.bean.MyMoney">
+		select
+		a.userid as userid,
+		a.User_name as username,
+		a.User_level as userlevel,
+		b.Get_now as getnow,
+		b.Charge as charge,
+		b.Getting_now as gettingnow,
+		b.All_geting as allgetting,
+		b.Score as score,
+		b.Experience as
+		experience
+		from
+		tower_user_info a
+		left join tower_user_charge b on
+		a.userid=b.userid
+		where
+		1=1
+		and a.userid=#{userid};
+	</select>
+
+	<select id="getBanks" resultType="com.bolion.money.bean.Bank">
+		select id as id,
+		name as name,
+		background as background,
+		icon as icon
+		from tower_bank;
+	</select>
+
+	<select id="getCards" parameterType="int" resultType="com.bolion.money.bean.Card">
+		select
+		b.id
+		as id,
+		b.userid as userid,
+		b.Wx_id as wxid,
+		b.Bank_account as bankaccount,
+		b.Bank_name as
+		bankname,
+		b.Bank_open as bankopen,
+		b.Bank_cardid as bankcardid,
+		b.Is_default as isdefault,
+		t.icon as bankicon,
+		t.background as
+		bankbackground
+		from
+		tower_user_bank b
+		left join tower_bank t
+		on
+		t.name=b.Bank_name
+		where 1=1
+		and b.userid=#{userid};
+	</select>
+
+	<select id="getCard" parameterType="int" resultType="com.bolion.money.bean.Card">
+		select
+		b.id
+		as id,
+		b.userid as userid,
+		b.Wx_id as wxid,
+		b.Bank_account as bankaccount,
+		b.Bank_name as
+		bankname,
+		b.Bank_open as bankopen,
+		b.Bank_cardid as bankcardid,
+		b.Is_default as isdefault,
+		t.icon as bankicon,
+		t.background as
+		bankbackground
+		from
+		tower_user_bank b
+		left join tower_bank t
+		on
+		t.name=b.Bank_name
+		where 1=1
+		and b.id=#{id};
+	</select>
+
+	<delete id="deleteCard" parameterType="int">
+		delete from
+		tower_user_bank
+		where 1=1
+		and ID=#{id};
+	</delete>
+
+	<update id="CancelDefault" parameterType="map">
+		update tower_user_bank
+		set Is_default=0
+		where userid=#{userid};
+	</update>
+
+	<update id="updateCard" parameterType="com.bolion.money.bean.Card">
+		update tower_user_bank
+		set
+		<if test="bankaccount!=null">
+			Bank_account=#{bankaccount},
+		</if>
+		<if test="bankname!=null">
+			Bank_name=#{bankname},
+		</if>
+		<if test="bankopen!=null">
+			Bank_open=#{bankopen},
+		</if>
+		<if test="bankcardid!=null">
+			Bank_cardid=#{bankcardid},
+		</if>
+		Is_default=#{isdefault}
+		where ID=#{id}
+		and userid=#{userid};
+	</update>
+
+	<update id="saveupdateCard" parameterType="com.bolion.money.bean.Card">
+		update tower_user_bank
+		set
+		<if test="bankaccount!=null">
+			Bank_account=#{bankaccount},
+		</if>
+		<if test="bankname!=null">
+			Bank_name=#{bankname},
+		</if>
+		<if test="bankopen!=null">
+			Bank_open=#{bankopen},
+		</if>
+		<if test="bankcardid!=null">
+			Bank_cardid=#{bankcardid}
+		</if>
+		where ID=#{id};
+	</update>
+
+	<insert id="addCard" parameterType="com.bolion.money.bean.Card">
+		insert into tower_user_bank
+		(userid,Wx_id,Bank_account,Bank_name,Bank_open,Bank_cardid,Is_default)
+		values
+		(#{userid},#{wxid},#{bankaccount},#{bankname},#{bankopen},#{bankcardid},#{isdefault});
+	</insert>
+
+	<select id="getCardNumber" parameterType="int" resultType="int">
+		select count(1)
+		from tower_user_bank
+		where userid=#{userid}
+		and
+		Is_default = 1;
+	</select>
+
+	<select id="getDefaultCard" parameterType="int"
+		resultType="com.bolion.money.bean.Card">
+		select *
+		from tower_user_bank
+		where userid=#{userid}
+		and
+		Is_default = 1;
+	</select>
+
+	<select id="getReturnMoney" parameterType="int" resultType="int">
+		select Get_now
+		from tower_user_charge
+		where userid=#{userid};
+	</select>
+
+	<insert id="insertUserTxRecord" useGeneratedKeys="true"
+		keyProperty="id" parameterType="com.bolion.money.bean.UserTxRecordInfo">
+		insert into tower_user_tx_record
+		(userid,Wx_id,Tx_id,Card_id,Fee,state,Add_date,Bank_back_id,Bz)
+		values
+		(#{userid},#{wxid},#{txid},#{cardid},#{fee},0,GETDATE(),#{bankbackid},#{bz});
+	</insert>
+
+	<update id="updateUserChargeTxid" parameterType="map">
+		update
+		tower_user_tx_source
+		set
+		Tx_id=#{id}
+		where userid=#{userid}
+		and Tx_id =0;
+	</update>
+
+	<update id="updateUserChargeByTx" parameterType="map">
+		update
+		tower_user_charge
+		set
+		Charge=Charge-#{txfee},
+		Get_now=Get_now-#{txfee},
+		Getting_now=Getting_now+#{txfee}
+		where userid=#{userid};
+	</update>
+
+	<update id="updateTxRecodeState" parameterType="map">
+		update
+		tower_user_tx_record
+		set state=#{state}
+		where ID=#{id};
+	</update>
+
+	<select id="getUserInfoByTxid" parameterType="int" resultType="map">
+		select
+		u.User_name as username,
+		u.User_tele as usertele,
+		t.Tx_id as txid
+		from
+		tower_user_info u
+		left join tower_user_tx_record t on
+		t.userid=u.userid
+		where t.ID=#{id}
+	</select>
+	<insert id="addTxdoinfo" parameterType="com.bolion.money.bean.TxDoinfo">
+		insert into
+		tower_user_tx_doinfo
+		(Tx_id,Do_user_id,Do_user_name,Do_user_tele,User_type,Now_state,Do_date,Sh_info,Bz)
+		values(#{txid},#{douserid},#{dousername},#{dousertele},#{usertype},#{nowstate},GETDATE(),#{shinfo},#{bz});
+	</insert>
+
+	<select id="weGetGetNowMoenys" parameterType="int"
+		resultType="com.bolion.money.bean.TxSource">
+		select
+		t.Tower_name as towername,
+		s.id as id,
+		s.Tx_id as txid,
+		s.Order_id as orderid,
+		s.userid as userid,
+		s.Fee_type as feetype,
+		CONVERT(varchar, s.Pay_time, 120 ) as paytime,
+		s.Fee as fee,
+		e.Tower_type_img as towertypeimg
+		from tower_user_tx_source s
+		left join
+		tower_order_detail o on o.ID=s.Order_id
+		left join tower_tower_info t on
+		o.Tower_id=t.ID
+		left join tower_tower_type e on e.ID=t.Tower_type
+		where
+		s.userid=#{userid}
+		and s.Tx_id=0
+		order by s.Pay_time desc;
+	</select>
+
+	<select id="weGetGetNowInfos" parameterType="int"
+		resultType="com.bolion.money.bean.TxSource">
+		select
+		t.Tower_name as towername,
+		s.id as id,
+		s.Tx_id as txid,
+		s.Order_id as orderid,
+		s.userid as userid,
+		s.Fee_type as feetype,
+		CONVERT(varchar, s.Pay_time, 120 ) as paytime,
+		s.Fee as fee,
+		e.Tower_type_img as towertypeimg
+		from tower_user_tx_source s
+		left join tower_order_detail o on o.ID=s.Order_id
+		left join tower_tower_info t on o.Tower_id=t.ID
+		left join tower_tower_type e on e.ID=t.Tower_type
+		where
+		s.id=#{id}
+		order by s.Pay_time desc;
+	</select>
+
+	<select id="weGetGettingNowMoneys" parameterType="int"
+		resultType="com.bolion.money.bean.TxRecord">
+		select
+		r.ID as id,
+		r.Tx_id as txid,
+		r.fee as fee,
+		CONVERT(varchar, r.Add_date, 120 ) as adddate,
+		r.state as state,
+		CONVERT(varchar, r.Complete_date, 120 ) as completedate
+		from tower_user_tx_record r
+		where 1=1
+		and r.userid=#{userid}
+		and r.state in (0,1,2,3,4)
+		order by r.Add_date desc;
+	</select>
+	
+	<select id="weGetGettingNowInfos" parameterType="int"
+		resultType="com.bolion.money.bean.TxRecord">
+		select
+		r.ID as id,
+		r.Tx_id as txid,
+		r.fee as fee,
+		t.Tower_name as towername,
+		CONVERT(varchar, r.Add_date, 120 ) as adddate,
+		r.state as state,
+		e.Tower_type_img as towertypeimg,
+		CONVERT(varchar, r.Complete_date, 120 ) as completedate
+		from tower_user_tx_record r
+		left join tower_user_tx_source s on r.id=s.Tx_id 
+		left join tower_order_detail o on o.ID=s.Order_id
+		left join tower_tower_info t on o.Tower_id=t.ID
+		left join tower_tower_type e on e.ID=t.Tower_type
+		where 1=1
+		and r.id=#{id}
+		order by r.Add_date desc;
+	</select>
+	
+	<select id="weGetAllGettingMoenys" parameterType="int"
+		resultType="com.bolion.money.bean.TxRecord">
+		select
+		r.ID as id,
+		r.Tx_id as txid,
+		r.fee as fee,
+		t.Tower_name as towername,
+		CONVERT(varchar, r.Add_date, 120 ) as adddate,
+		r.state as state,
+		e.Tower_type_img as towertypeimg,
+		CONVERT(varchar, r.Complete_date, 120 ) as completedate
+		from tower_user_tx_record r
+		left join tower_user_tx_source s on r.id=s.Tx_id 
+		left join tower_order_detail o on o.ID=s.Order_id
+		left join tower_tower_info t on o.Tower_id=t.ID
+		left join tower_tower_type e on e.ID=t.Tower_type
+		where 1=1
+		and r.userid=#{userid}
+		and state in (5)
+		order by r.Add_date desc;
+	</select>
+	
+	<select id="GetTxRecordTower" parameterType="int"
+	    resultType="com.bolion.money.bean.TxRecordTower">
+	    select
+	    t.Tower_name as towername,
+	    s.Fee as towerfee,
+		e.Tower_type_img as towerimg,
+		s.Fee_type as feetype,
+		CONVERT(varchar, s.Pay_time, 120 ) as completedate
+		from tower_user_tx_source s 
+		left join tower_order_detail o on o.ID=s.Order_id
+		left join tower_tower_info t on o.Tower_id=t.ID
+		left join tower_tower_type e on e.ID=t.Tower_type
+		where 1=1
+		and s.Tx_id=#{id};
+	</select>    
+	
+</mapper>    

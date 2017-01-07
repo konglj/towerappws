@@ -1,0 +1,22 @@
+mp_root=http\://wxi2.butuchina.com/
+mp_name=zhuli
+#system_root=http\://wxi1.butuchina.com/
+#system_root=http\://wxi2.butuchina.com/
+#system_root=http\://localhost\:8080/
+system_root=http\://192.168.0.106\:8080/
+system_name=ewp
+#activity_root=http\://wxi1.butuchina.com/
+activity_root=http\://192.168.0.106\:8080/
+assist_file=mugong_file/assist_file
+userewm_file=mugong_file/user/ewm
+userhead_file=mugong_file/user/head
+mp_ewm_file=mugong_file/mp
+
+article_file=mugong_file/article/images
+
+#Every Month max send score,if 0 ,no limit
+maxsharecount=100
+
+#Send 1 score per this number, if 0, no limit
+scoresendrule=10
+

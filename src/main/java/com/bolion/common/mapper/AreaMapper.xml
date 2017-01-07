@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.bolion.common.mapper.AreaMapper">
+
+	
+	 <select id="getProvices" resultMap="getCitysMap">
+	   select 
+	   Province_name as provincename,
+	   Province_id as provinceid
+	   from tower_province
+	   order by Sort asc
+	   ;
+	 </select>
+	 
+	 <resultMap type="com.bolion.common.bean.Province" id="getCitysMap">
+	   <id column="provinceid" property="provinceid"/>
+	  <collection property="citys" column="provinceid" select="getCitys"></collection>
+	 </resultMap>
+	 
+	 
+	 <select id="getCitys" resultType="com.bolion.common.bean.City">
+	   select 
+	   c.City_id as cityid,
+	   c.City_name as cityname
+	   from Tower_city c
+	   where c.Province_id=#{provinceid}
+	   and c.IsDirect=0
+	   ;
+	 </select>
+
+</mapper>

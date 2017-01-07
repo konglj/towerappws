@@ -1,0 +1,61 @@
+package com.bolion.user.service;
+
+import java.util.Map;
+
+import com.bolion.user.bean.User;
+import com.bolion.user.bean.UserChargeInfo;
+import com.bolion.user.bean.UserIndex;
+import com.bolion.user.bean.UserInfo;
+
+public interface UserService {
+
+	public Map getUseridByPhone(String phone);
+	
+	public int insertUser(Map map);
+	
+	/**
+	 * 修改用户信息
+	 * @param userInfo
+	 * @return
+	 */
+	public int updateUserInfo(User user);
+	
+	
+	/**
+	 * 修改用户头像
+	 * @param user
+	 * @return
+	 */
+	public int updateUserHeadImg(User user);
+	
+	/**
+	 * 修改团队凭证图片
+	 * @param user
+	 * @return
+	 */
+	public int updateUserTeamImg(User user);
+	
+	
+	/**
+	 * 获取首页信息
+	 * @return
+	 */
+	public UserIndex getUserIndexInfo(int userid);
+	
+	/**
+	 * 获取用户详情信息
+	 * @return
+	 */
+	public UserInfo getUserInfo(int userid);
+	
+	/**
+	 * 获取用户级别
+	 * @param userid
+	 * @return
+	 */
+	public int getUserLevel(int userid);
+	
+	public int updateUserCharge(UserChargeInfo chargeInfo);
+}
+
+

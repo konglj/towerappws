@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.bolion.index.mapper.IndexMapper">
+
+	<select id="getBanners" resultType="com.bolion.index.bean.Banner">
+		select
+		b.id as id,
+		b.name as name,
+		b.img as img,
+		b.url as url
+		from Tower_banner b
+		where show=1
+		order by sort asc
+	</select>
+	
+	<select id="getDistricts" parameterType="int" resultType="com.bolion.index.bean.District">
+	    select
+		d.ID as id,
+		d.Dis_id as disid,
+		d.Dis_name as disname,
+		d.City_id as cityid
+		from Tower_district d
+		where 1=1
+		and d.City_id = #{cityid}
+		order by ID asc;
+	</select>    
+</mapper>

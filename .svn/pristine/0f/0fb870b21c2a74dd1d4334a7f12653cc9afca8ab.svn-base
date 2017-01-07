@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.bolion.setting.mapper.SetMapper">
+
+	<select id="getAppAbout" parameterType="int"
+		resultType="com.bolion.setting.bean.AppMessage">
+		select * from
+		tower_app_message
+		where
+		1=1
+		and clienttype=#{clienttype};
+	</select>
+
+	<insert id="addOpinion" parameterType="com.bolion.setting.bean.AppQuestion">
+		insert tower_app_question
+		(userid,type,contents,answer,contact,date)
+		values
+		(#{userid},#{type},#{contents},#{answer},#{contact},GETDATE());
+	</insert>
+	<select id="weQdFlow" parameterType="map"
+		resultType="com.bolion.setting.bean.AppQuestion">
+		select 
+		q.id as id,
+		q.userid as id,
+		q.type as type,
+		q.contents as contents,
+		q.answer as answer,
+		q.contact as contact,
+		t.name as typename,
+		CONVERT(varchar, q.date, 120) as date
+		from
+		tower_app_question q
+		left join tower_app_question_type t on q.type=t.type
+		where
+		1=1
+		and q.type=#{type};
+	</select>
+
+	<select id="weCommonQuesionInfo" parameterType="int"
+		resultType="com.bolion.setting.bean.AppQuestion">
+		select 
+		q.id as id,
+		q.userid as id,
+		q.type as type,
+		q.contents as contents,
+		q.answer as answer,
+		q.contact as contact,
+		t.name as typename,
+		CONVERT(varchar, q.date, 120) as date
+		from
+		tower_app_question q
+		left join tower_app_question_type t on q.type=t.type 
+		where
+		1=1
+		and q.id=#{id};
+	</select>
+
+</mapper>    

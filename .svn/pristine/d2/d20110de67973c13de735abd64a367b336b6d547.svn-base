@@ -1,0 +1,17 @@
+package com.bolion.index.service;
+
+import java.util.List;
+
+import com.bolion.common.bean.Province;
+import com.bolion.index.bean.District;
+import com.bolion.index.bean.IndexInfo;
+
+public interface IndexService {
+	
+	public List<Province> getProvinces();
+	
+	public void getIndexInfo(IndexInfo indexInfo);
+	
+	public List<District> getDistricts(int cityid);
+
+}

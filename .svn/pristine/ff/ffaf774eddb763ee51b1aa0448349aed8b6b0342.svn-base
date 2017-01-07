@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.bolion.order.mapper.OrderShMapper">
+
+
+ <select id="getShInfos" parameterType="int"
+		resultType="com.bolion.order.bean.OrderShInfo">
+	   select 
+	   d.ID as id,
+	   d.Order_id as orderid,
+	   d.Order_user as orderuser,
+	   d.Order_name as ordername,
+	   d.Order_phone as orderphone,
+	  case d.Order_type
+	   when 0 then '用户'
+	   else p.Power_name
+	   end 
+	     as ordertypename,
+	   s.statename as orderstatename,
+		CONVERT(varchar,
+		d.Order_time, 120 ) as ordertime,
+		d.Order_sh_info as ordershinfo,
+		d.bz as bz
+		from tower_sh_doinfo d
+		left join tower_order_state s on s.state=d.Order_state 
+		left join tower_power p on p.ID=d.Order_type
+		where Order_id=#{orderid}
+		order by Order_time desc
+		;
+	</select>
+	
+	
+	<select id="getShOptions" parameterType="map"
+		resultType="map">
+	   select 
+	  <if test="topcount!=null and topcount!=0">
+	    top(#{topcount})
+	  </if>
+		CONVERT(varchar,
+		d.Order_time, 120 ) as time,
+		case when  d.content is null then ''
+		     else  d.content end as content 
+		from tower_sh_doinfo d
+		where Order_id=#{orderid}
+		order by Order_time desc
+		;
+	</select>
+	
+	
+	
+	<select id="getShInfosByTowerid" parameterType="int"
+		resultType="com.bolion.order.bean.OrderShInfo">
+	   select 
+	   d.ID as id,
+	   d.Order_id as orderid,
+	   d.Order_user as orderuser,
+	   d.Order_name as ordername,
+	   d.Order_phone as orderphone,
+       case d.Order_type
+	   when 0 then '用户'
+	   else p.Power_name
+	   end 
+	     as ordertypename,
+	   s.statename  as orderstatename,
+		CONVERT(varchar,
+		d.Order_time, 120 ) as ordertime,
+		d.Order_sh_info as ordershinfo,
+		d.bz as bz
+		from (select * from (select m.*,RANK() over (PARTITION by m.order_id  order by m.order_time desc)
+         as drank from tower_sh_doinfo m where   m.Order_id in (select ID from tower_order_detail o where o.Tower_id=#{towerid})) a where drank=1) d 
+		left join tower_order_state s on s.state=d.Order_state
+		left join tower_power p on p.ID=d.Order_type
+		where 1=1
+		order by d.Order_time desc
+		;
+	</select>
+
+	<insert id="insertOrderShInfo" parameterType="com.bolion.order.bean.OrderShInfo">
+	
+	insert into tower_sh_doinfo
+	(Order_id,Order_user,order_name,order_phone,Order_type,order_state,order_time,Order_sh_info)
+	values
+	(#{orderid},#{orderuser},#{ordername},#{orderphone},#{ordertype},#{orderstate},GETDATE(),#{ordershinfo})
+	
+	</insert>
+
+</mapper>

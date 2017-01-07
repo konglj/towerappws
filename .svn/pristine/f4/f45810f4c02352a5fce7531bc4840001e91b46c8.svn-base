@@ -1,0 +1,417 @@
+package com.bolion.order.service.impl;
+
+import java.lang.annotation.Retention;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import javax.management.RuntimeErrorException;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.bolion.common.TowerConfig;
+import com.bolion.common.OrderState;
+import com.bolion.common.mapper.SettingMapper;
+import com.bolion.common.util.DataValidation;
+import com.bolion.common.util.ResultUtil;
+import com.bolion.common.util.TowerUtil;
+import com.bolion.order.bean.AddOrder;
+import com.bolion.order.bean.OrderBaseInfo;
+import com.bolion.order.bean.OrderInfo;
+import com.bolion.order.bean.OrderListInfo;
+import com.bolion.order.bean.OrderPage;
+import com.bolion.order.bean.OrderShInfo;
+import com.bolion.order.bean.UserOrderInfo;
+import com.bolion.order.common.util.StrUtil;
+import com.bolion.order.mapper.OrderMapper;
+import com.bolion.order.mapper.OrderShMapper;
+import com.bolion.order.service.OrderService;
+import com.bolion.tower.bean.TowerBaseInfo;
+import com.bolion.tower.bean.TowerReport;
+import com.bolion.tower.mapper.TowerMapper;
+import com.bolion.user.bean.UserBaseInfo;
+import com.bolion.user.mapper.UserMapper;
+
+@Service
+public class OrderServiceImpl implements OrderService {
+	@Autowired
+	private OrderMapper orderMapper;
+
+	@Autowired
+	private TowerMapper towerMapper;
+
+	@Autowired
+	private SettingMapper settingMapper;
+
+	@Autowired
+	private UserMapper userMapper;
+
+	@Autowired
+	private OrderShMapper orderShMapper;
+
+	/**
+	 * 插入审核信息
+	 * 
+	 * @param userid
+	 * @param orderid
+	 * @param state
+	 * @return
+	 */
+	private int insertShInfo(int userid, int orderid, int state,String content) {
+		// 插入审核信息（添加订单信息）
+		UserBaseInfo userInfo = userMapper.getUserBaseInfo(userid);
+		OrderShInfo shInfo = new OrderShInfo();
+		shInfo.setOrderid(orderid);
+		shInfo.setOrderuser(String.valueOf(userid));
+		shInfo.setOrdername(userInfo.getUsername());
+		shInfo.setOrderphone(userInfo.getUsertele());
+		shInfo.setOrderstate(state);
+		shInfo.setOrdertype(0);
+		String username=userInfo.getUsername()==null?"":userInfo.getUsername();
+		shInfo.setContent(String.format(content,username));
+		return orderShMapper.insertOrderShInfo(shInfo);
+	}
+
+	/**
+	 * 修改站址记录
+	 * 
+	 * @param report
+	 * @return
+	 */
+	private int updateTowerReport(TowerReport report) {
+		int count = towerMapper.checkTowerReportExist(report.getTowerid());
+		if (count == 0) {
+			count = towerMapper.insertTowerReport(report);
+		} else {
+			count = towerMapper.upateTowerReport(report);
+		}
+		return count;
+	}
+
+	@Override
+	public UserOrderInfo getUserOrderInfo(int userid) {
+		Map map = new HashMap();
+		map.put("userid", userid);
+		return orderMapper.getUserOrderInfo(map);
+	}
+
+	@Override
+	public int updateUserOrderInfo(UserOrderInfo userOrderInfo) {
+		return orderMapper.updateUserOrder(userOrderInfo);
+	}
+
+	@Override
+	@Transactional
+	public Object addOrder(int userid, int towerid) {
+		TowerBaseInfo towerBaseInfo = towerMapper.getTowerBaseInfo(towerid);
+		if (towerBaseInfo == null || towerBaseInfo.getTowerstate() == 1
+				|| towerBaseInfo.getTowercity() == 0) {
+			return ResultUtil
+					.generateResponseMsg(StrUtil.order_add_tower_error);
+		}
+
+		UserOrderInfo userOrderInfo = getUserOrderInfo(userid);
+		if (userOrderInfo == null)
+			return ResultUtil
+					.generateResponseMsg(StrUtil.order_add_order_error);
+		int level = userOrderInfo.getUserlevel();
+		int usertype = userOrderInfo.getUsertype();
+		if (level == 0 || usertype == 0)
+			return ResultUtil.generateResponseMsg(StrUtil.order_add_user_error);
+		int province = towerBaseInfo.getTowercity() / 100;
+		// 判断抢单数是否超过限制
+		int maxqdcount = 0;
+		String qdcount = "";
+		if (usertype == TowerConfig.usertypenr) {
+			qdcount = settingMapper.getSettingContent(province
+					+ TowerConfig.nrqdcountname);
+
+		} else {
+			qdcount = settingMapper.getSettingContent(province
+					+ TowerConfig.otherqdcountname);
+		}
+		if (DataValidation.isNullOrEmpty(qdcount)) {
+			return ResultUtil
+					.generateResponseMsg(StrUtil.order_add_setting_error);
+		}
+		maxqdcount = Integer.valueOf(qdcount);
+		// 进行中订单
+		int orderCount = userOrderInfo.getIngcount();
+		if (maxqdcount != 0 && orderCount >= maxqdcount) {
+			return ResultUtil
+					.generateResponseMsg(StrUtil.order_add_count_error);
+		}
+		// 判断是否公示
+		String gsstarttime = settingMapper.getSettingContent(province
+				+ TowerConfig.gsgsstarttimename);
+		String gstime = settingMapper.getSettingContent(province
+				+ TowerConfig.gstimename);
+		if (gsstarttime != null && gstime != null) {
+			long gs = TowerUtil.getTimeBalance(gsstarttime, gstime);
+			if (gs > 0) {
+				return ResultUtil
+						.generateResponseMsg(StrUtil.order_add_gongshi_error);
+			}
+		}
+
+		// 添加订单信息
+
+		AddOrder order = new AddOrder();
+		String orderid = TowerUtil.getOrderid(userid, TowerConfig.order_no_qz);
+		order.setUserid(userid);
+		;
+		order.setTowerid(towerid);
+		order.setTowerfee(towerBaseInfo.getTowerfee());
+		order.setTowerstate(0);
+		order.setToweryqcount(0);
+		order.setTowerfirstfee(0);
+		order.setTowerendfee(0);
+		order.setOrderid(orderid);
+		String qdtime = settingMapper.getSettingContent(province
+				+ TowerConfig.qdtimename);
+		if (DataValidation.isNullOrEmpty(qdtime) || qdtime.equals("0")) {
+			return ResultUtil
+					.generateResponseMsg(StrUtil.order_add_qdtime_error);
+		}
+		order.setQdtime(Integer.valueOf(qdtime) * 24);
+		int count = orderMapper.insertOrder(order);
+		if (count == 0)
+			return ResultUtil.generateResponseMsg(StrUtil.order_add_error);
+		// 修改用户抢单数
+		userOrderInfo = new UserOrderInfo();
+		userOrderInfo.setUserid(userid);
+		userOrderInfo.setIngcount(1);
+		count = orderMapper.updateUserOrder(userOrderInfo);
+		if (count == 0)
+			throw new RuntimeException();
+
+		// 修改站址状态
+		Map<String, Integer> mapState = new HashMap<String, Integer>();
+		mapState.put("towerid", towerid);
+		mapState.put("state", 1);
+		count = towerMapper.updateTowerState(mapState);
+		if (count == 0)
+			throw new RuntimeException();
+
+		// 插入审核信息（添加订单信息）
+		count = insertShInfo(userid, order.getId(), OrderState.qd,StrUtil.addorder_content);
+		if (count == 0)
+			throw new RuntimeException();
+
+		// 修改站址抢单数量
+		try {
+			// 修改站址统计表
+			// 站址查看次数+1
+			count = towerMapper.checkTowerReportExist(towerid);
+			TowerReport report = new TowerReport();
+			report.setTowerid(towerid);
+			report.setSalecount(1);
+			if (count == 0) {
+				towerMapper.insertTowerReport(report);
+			} else {
+				towerMapper.upateTowerReport(report);
+
+			}
+		} catch (Exception e) {
+		}
+
+		return ResultUtil.generateResponseMsg("1");
+	}
+
+	@Override
+	public Map getOrders(OrderPage orderPage) {
+		int count = orderMapper.getOrderPageCount(orderPage);
+		List<OrderListInfo> orders = orderMapper.getOrders(orderPage);
+		if (orders == null)
+			orders = new ArrayList<OrderListInfo>();
+		Map map = new HashMap();
+		map.put("orderpages", count);
+		map.put("orders", orders);
+		return map;
+	}
+
+	@Override
+	public OrderInfo getOrderInfo(int orderid) {
+		OrderInfo orderInfo = orderMapper.getOrderInfo(orderid);
+		Map<String, Integer> map = new HashMap<String, Integer>();
+		map.put("orderid", orderid);
+		map.put("topcount", TowerConfig.order_option_top);
+		List<Map<String, String>> options = orderShMapper.getShOptions(map);
+		orderInfo.setOptions(options);
+		return orderInfo;
+	}
+
+	@Override
+	public List<Map<String, String>> getShOptions(Map<String, Integer> map) {
+		return orderShMapper.getShOptions(map);
+	}
+
+	// 目标建站
+	@Override
+	@Transactional(isolation = Isolation.SERIALIZABLE)
+	public synchronized Object updateOrderTargetAddress(int orderid,
+			String gps, String address) {
+		OrderBaseInfo baseInfo = orderMapper.getOrderBaseInfo(orderid);
+		if (baseInfo == null
+				|| !OrderState.canTargetAddressOrder(baseInfo.getOrderstate()))
+			return ResultUtil.generateResponseMsg(StrUtil.order_get_info_error);
+		Map<String, Object> map = new HashMap<String, Object>();
+		map.put("orderid", orderid);
+		map.put("state", OrderState.target_address_apply);
+		map.put("address", address);
+		map.put("factgps", gps);
+		int count = 0;
+		count = orderMapper.updateTargetAddress(map);
+		if (count == 0)
+			throw new RuntimeException();
+		// 插入审核日志
+		// 插入tower_sh_doinfo
+		count = insertShInfo(baseInfo.getUserid(), orderid,
+				OrderState.target_address_apply,StrUtil.updateaddress_content);
+		if (count == 0)
+			throw new RuntimeException();
+		return ResultUtil.generateResponseMsg("1");
+	}
+
+	// 弃单
+	@Override
+	@Transactional(isolation = Isolation.SERIALIZABLE)
+	public synchronized Object abandonOrder(int orderid) {
+		OrderBaseInfo baseInfo = orderMapper.getOrderBaseInfo(orderid);
+		if (baseInfo == null
+				|| !OrderState.canAbandonOrder(baseInfo.getOrderstate()))
+			return ResultUtil.generateResponseMsg(StrUtil.order_get_info_error);
+		// 修改订单状态
+		Map<String, Object> map = new HashMap<String, Object>();
+		map.put("orderid", orderid);
+		map.put("state", OrderState.cancel);
+		int count = 0;
+		count = orderMapper.abandonOrder(map);
+		if (count == 0)
+			throw new RuntimeException();
+		map.clear();
+		map.put("towerid", baseInfo.getTowerid());
+		map.put("state", 0);
+		// 修改站址状态为可抢
+		count = towerMapper.updateTowerState(map);
+		if (count == 0)
+			throw new RuntimeException();
+
+		// 获取用户订单信息
+		UserOrderInfo userOrderInfo = new UserOrderInfo();
+		map.clear();
+		map.put("userid", baseInfo.getUserid());
+		userOrderInfo = orderMapper.getUserOrderInfo(map);
+
+		// 如果连续弃单N后 冻结用户
+		if (userOrderInfo.getConcancelcount() == TowerConfig.order_concancel_dj_count - 1) {
+			map.clear();
+			map.put("userstate", 0);
+			map.put("userid", baseInfo.getUserid());
+			count = userMapper.updateUserState(map);
+			if (count == 0)
+				throw new RuntimeException();
+		}
+
+		// 修改用户订单信息 进行中-1 取消数+1 连续取消数+1
+		int concancelcount = 1;
+		if (userOrderInfo.getConcancelcount() >= TowerConfig.order_concancel_dj_count)
+			concancelcount = 1 - userOrderInfo.getConcancelcount();
+		userOrderInfo = new UserOrderInfo();
+		userOrderInfo.setUserid(baseInfo.getUserid());
+		userOrderInfo.setIngcount(-1);
+		userOrderInfo.setCancelcount(1);
+		userOrderInfo.setConcancelcount(concancelcount);
+		count = orderMapper.updateUserOrder(userOrderInfo);
+		if (count == 0)
+			throw new RuntimeException();
+
+		// 插入审核日志
+		// 插入tower_sh_doinfo
+		count = insertShInfo(baseInfo.getUserid(), orderid, OrderState.cancel,StrUtil.abondon_content);
+		if (count == 0)
+			throw new RuntimeException();
+
+		// 修改站址统计记录
+		TowerReport report = new TowerReport();
+		report.setTowerid(baseInfo.getTowerid());
+		report.setCancelcount(1);
+		count = updateTowerReport(report);
+		if (count == 0)
+			throw new RuntimeException();
+
+		return ResultUtil.generateResponseMsg("1");
+	}
+
+	@Override
+	@Transactional(isolation = Isolation.SERIALIZABLE)
+	public synchronized Object postOrder(int orderid) {
+		OrderBaseInfo baseInfo = orderMapper.getOrderBaseInfo(orderid);
+		if (baseInfo == null
+				|| !OrderState.canPostOrder(baseInfo.getOrderstate()))
+			return ResultUtil.generateResponseMsg(StrUtil.order_get_info_error);
+		// 修改订单状态
+		Map<String, Object> map = new HashMap<String, Object>();
+		map.put("orderid", orderid);
+		map.put("state", OrderState.post);
+		int count = 0;
+		count = orderMapper.postOrder(map);
+		if (count == 0)
+			throw new RuntimeException();
+		// 连续弃单数清0
+		UserOrderInfo userOrderInfo = orderMapper.getUserOrderInfo(map);
+		map.clear();
+		map.put("userid", baseInfo.getUserid());
+		userOrderInfo = orderMapper.getUserOrderInfo(map);
+
+		if (userOrderInfo.getConcancelcount() > 0) {
+			int concancelcount = 0 - userOrderInfo.getConcancelcount();
+			userOrderInfo = new UserOrderInfo();
+			userOrderInfo.setUserid(baseInfo.getUserid());
+			userOrderInfo.setConcancelcount(concancelcount);
+			count = orderMapper.updateUserOrder(userOrderInfo);
+			if (count == 0)
+				throw new RuntimeException();
+		}
+		// 插入审核日志
+		// 插入tower_sh_doinfo
+		count = insertShInfo(baseInfo.getUserid(), orderid, OrderState.post,StrUtil.post_content);
+		if (count == 0)
+			throw new RuntimeException();
+
+		return ResultUtil.generateResponseMsg("1");
+	}
+
+	@Override
+	@Transactional(isolation = Isolation.SERIALIZABLE)
+	public synchronized Object delayOrder(int orderid, String delayreason) {
+		OrderBaseInfo baseInfo = orderMapper.getOrderBaseInfo(orderid);
+		if (baseInfo == null
+				|| !OrderState.canDelayOrder(baseInfo.getOrderstate()))
+			return ResultUtil.generateResponseMsg(StrUtil.order_deplay_state_error);
+		if (baseInfo.getOrderyqcount() >= TowerConfig.yq_max_count)
+			return ResultUtil
+					.generateResponseMsg(StrUtil.order_dealy_count_error);
+		// 修改订单状态
+		Map<String, Object> map = new HashMap<String, Object>();
+		map.put("orderid", orderid);
+		map.put("state", OrderState.delay);
+		map.put("delayreason", delayreason);
+		int count = orderMapper.delayOrder(map);
+		if (count == 0)
+			throw new RuntimeException();
+		// 插入审核日志
+		// 插入tower_sh_doinfo
+		count = insertShInfo(baseInfo.getUserid(), orderid, OrderState.delay,StrUtil.delay_content);
+		if (count == 0)
+			throw new RuntimeException();
+
+		return ResultUtil
+				.generateResponseMsg("1");
+
+	}
+}

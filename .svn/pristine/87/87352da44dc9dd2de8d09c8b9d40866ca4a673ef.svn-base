@@ -1,0 +1,296 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.bolion.order.mapper.OrderMapper">
+
+	<!-- 订单管理统计 -->
+	<insert id="insertUserOrderInfo" parameterType="com.bolion.order.bean.UserOrderInfo">
+		insert into
+		tower_user_order_info
+		(User_id,Order_count,Succ_count,Ing_count,Fail_count,Cancel_count,Concanel_count,See_tower_ids,See_tower_date,Time_count,Reject_count)
+		values
+		(#{userid},#{ordercount},#{succcount},#{ingcount},#{failcount},#{cancelcount},#{concanelcount},#{seetowerids},#{seetowerdate},#{timecount},#{rejectcount})
+		;
+	</insert>
+
+	<!-- 订单统计管理 -->
+	<update id="updateUserOrder" parameterType="com.bolion.order.bean.UserOrderInfo">
+		update tower_user_order_info
+		set
+		<if test="ordercount!=0">
+			Order_count=Order_count+#{ordercount},
+		</if>
+		<if test="succcount">
+			Succ_count=Succ_count+#{succcount},
+		</if>
+		<if test="ingcount!=0">
+			Ing_count=Ing_count+#{ingcount},
+		</if>
+		<if test="failcount!=0">
+			Fail_count=Fail_count+#{failcount},
+		</if>
+		<if test="cancelcount!=0">
+			Cancel_count=Cancel_count+#{cancelcount},
+		</if>
+		<if test="seetowerids!=null and seetowerids!='' ">
+			See_tower_ids=#{seetowerids},
+		</if>
+		<if test="seetowerdate!=null and seetowerdate!='' ">
+			See_tower_date=#{seetowerdate},
+		</if>
+		User_id=#{userid}
+		where User_id=#{userid}
+		;
+	</update>
+
+	<select id="getUserOrderInfo" parameterType="map"
+		resultType="com.bolion.order.bean.UserOrderInfo">
+		select
+		Order_count as ordercount,
+		Succ_count as scccount,
+		Ing_count as
+		ingcount,
+		Fail_count as failcount,
+		Cancel_count as cancelcount,
+		Concancel_count as concancelcount,
+		See_tower_ids as seetowerids,
+		See_tower_date as seetowerdate,
+		u.User_level as userlevel,
+		u.User_type as usertype
+		from tower_user_order_info o
+		left join tower_user_info u on u.ID=o.User_id
+		where 1=1
+		and o.User_id=#{userid}
+		<if test="currentday!=null and currentday!=''">
+			and See_tower_date=#{currentday}
+		</if>
+		;
+
+	</select>
+	<select id="checkUserOrder" parameterType="int" resultType="int">
+		select count(1)
+		from tower_user_order_info
+		where User_id=#{userid}
+		;
+	</select>
+	
+	
+	<insert id="insertOrder" useGeneratedKeys="true" keyProperty="id"
+		parameterType="com.bolion.order.bean.AddOrder">
+		insert into tower_order_detail
+		(Order_id,Tower_id,User_id,Tower_fee,Tower_first_fee,Tower_end_fee,Tower_end_date,Tower_yq_count,Tower_state,Tower_add_time)
+		values
+		(#{orderid},#{towerid},#{userid},#{towerfee},
+		#{towerfirstfee},#{towerendfee},DATEADD(hh,#{qdtime},GETDATE()),#{toweryqcount},#{towerstate},GETDATE())
+		;
+	</insert>
+	
+	<select id="getOrders" parameterType="com.bolion.order.bean.OrderPage" resultType="com.bolion.order.bean.OrderListInfo">
+	select * from (select *,ROW_NUMBER() OVER (ORDER BY
+		orderaddtime desc
+		) as rank from
+		(
+	   select
+		o.ID as orderid,
+		o.Tower_id as towerid,
+		o.Tower_fee as towerfee,
+		o.Tower_end_date as towerenddate,
+		o.Tower_state as towerstate,
+		CONVERT(varchar, o.Tower_add_time, 120 ) as orderaddtime,
+		CONVERT(varchar, o.Tower_abandon_time, 120 ) as orderabandontime,
+		CONVERT(varchar, o.Tower_complete_time, 120
+		) as ordercompletetime,
+		p.Tower_type_img as towertypeimg,
+		(case when len(
+		t.Tower_name )>10 then left ( t.Tower_name ,10)+'...'
+		else t.Tower_name
+		end ) as towername,
+		case when (o.Tower_apply_time is NULL or o.Tower_apply_time='')
+		then   CONVERT(bigint,DATEDIFF(SECOND,GETDATE(),o.Tower_end_date))
+		else   CONVERT(bigint,DATEDIFF(SECOND,o.Tower_apply_time,o.Tower_end_date))
+		end as ordersytime
+		from tower_order_detail o
+		left join tower_tower_info t on t.ID=o.Tower_id
+		left join tower_area a on a.ID=t.Tower_area
+	    left join tower_city c on c.City_id=t.Tower_city
+	    left join Tower_district d on d.Dis_id=t.Tower_district
+	    left join tower_tower_type p on t.Tower_type=p.ID
+		where 1=1
+		and o.User_id=#{userid}
+		and t.Tower_city=#{towercity}
+		<if test="towerdistrict!=null and towerdistrict!=0">
+			and t.Tower_district=#{towerdistrict}
+		</if>
+		<if test="towerarea!=null and towerarea!=0">
+			and t.Tower_area=#{towerarea}
+		</if>
+		<if test="towername!=null and towername!=''">
+			and ( t.Tower_name like '%${towername}%' or
+			t.Tower_address like
+			'%${towername}%' or a.area_name like
+			'%${towername}%')
+		</if>
+		<if test="orderstate!=null and orderstate!=-1">
+		and o.Tower_state=#{orderstate}
+		</if>
+		<if test="sort==1">
+			and convert(varchar(10),o.Tower_add_time,120) >=convert(varchar(10),DATEADD(WW,-1,GETDATE()),120)
+		</if>
+		<if test="sort==2">
+			and convert(varchar(10),o.Tower_add_time,120) >=convert(varchar(10),DATEADD(MM,-1,GETDATE()),120)
+		</if>
+		<if test="sort==3">
+			and convert(varchar(10),o.Tower_add_time,120) >=convert(varchar(10),DATEADD(MM,-3,GETDATE()),120)
+		</if>
+		) w1)as tm
+		where tm.rank between
+		#{pageindex}*#{pagesize}-(#{pagesize}-1) and
+		#{pageindex}*#{pagesize}
+		;
+
+	</select>
+	
+	<select id="getOrderPageCount" parameterType="com.bolion.order.bean.OrderPage" resultType="int">
+	 select
+		CEILING((COUNT(1)+0.0)/#{pagesize})
+		from tower_order_detail o
+		left join tower_tower_info t on t.ID=o.Tower_id
+		left join tower_area a on a.ID=t.Tower_area
+	    left join tower_city c on c.City_id=t.Tower_city
+	    left join Tower_district d on d.Dis_id=t.Tower_district
+	    left join tower_tower_type p on t.Tower_type=p.ID
+		where 1=1
+		and o.User_id=#{userid}
+		and t.Tower_city=#{towercity}
+		<if test="towerdistrict!=null and towerdistrict!=0">
+			and t.Tower_district=#{towerdistrict}
+		</if>
+		<if test="towerarea!=null and towerarea!=0">
+			and t.Tower_area=#{towerarea}
+		</if>
+		<if test="towername!=null and towername!=''">
+			and ( t.Tower_name like '%${towername}%' or
+			t.Tower_address like
+			'%${towername}%' or a.area_name like
+			'%${towername}%')
+		</if>
+		<if test="orderstate!=null and orderstate!=-1">
+		and o.Tower_state=#{orderstate}
+		</if>
+		<if test="sort==1">
+			and convert(varchar(10),o.Tower_add_time,120) >=convert(varchar(10),DATEADD(WW,-1,GETDATE()),120)
+		</if>
+		<if test="sort==2">
+			and convert(varchar(10),o.Tower_add_time,120) >=convert(varchar(10),DATEADD(MM,-1,GETDATE()),120)
+		</if>
+		<if test="sort==3">
+			and convert(varchar(10),o.Tower_add_time,120) >=convert(varchar(10),DATEADD(MM,-3,GETDATE()),120)
+		</if>
+	</select>
+	
+	<select id="getOrderInfo" parameterType="int" resultType="com.bolion.order.bean.OrderInfo">
+	select
+		t.Tower_name as towername,
+		t.Tower_address as toweraddress,
+		p.Tower_type_img as towertypeimg,
+		t.Tower_fee as towerfee,
+		c.City_name
+		as towercity,
+		d.Dis_name as towerdistrict,
+		a.Area_name as towerarea,
+       case t.Tower_area
+		when 0 then c.City_name+'-'+d.Dis_name
+		else d.Dis_name+'-'+a.Area_name
+		end as towersection,
+		t.Tower_j as towergpsx,
+		t.Tower_w as towergpsy,
+		t.Tower_first_j as
+		towerfirstgpsx,
+		t.Tower_first_w as towerfirstgpsy,
+		t.Tower_second_j as
+		towersecondgpsx,
+		t.Tower_second_w as towersecondgpsy,
+		t.Tower_large as
+		towerlarge,
+		p.Tower_type_name as towertype,
+		t.Tower_info as towerinfo,
+		t.Tower_remark as towerremark,
+		t.Tower_manager as towermanager,
+		t.Tower_manager_name as
+		towermanagername,
+		t.Tower_manager_chat as towermanagerchat,
+		o.Tower_state as orderstate,
+		CONVERT(varchar, o.Tower_add_time, 120 ) as orderaddtime,
+		CONVERT(varchar, o.Tower_abandon_time, 120 ) as orderabandontime,
+		CONVERT(varchar, o.Tower_complete_time, 120
+		) as ordercompletetime
+		from tower_order_detail o 
+		left join  tower_tower_info t on t.ID=o.Tower_id
+		left join tower_area a on a.ID=t.Tower_area
+		left join tower_city c on c.City_id=t.Tower_city
+		left join tower_district d on d.dis_id=t.Tower_district
+		left join tower_tower_type p on p.ID=t.Tower_type
+		where 1=1
+		and o.ID=#{orderid}
+		;
+	</select>
+	
+	<select id="getOrderBaseInfo" parameterType="int" resultType="com.bolion.order.bean.OrderBaseInfo">
+	  select 
+	o.Tower_id as towerid,  
+	o.User_id as userid,
+	o.Tower_state as orderstate,
+	o.Tower_yq_count as orderyqcount
+	from tower_order_detail o 
+	where o.ID=#{orderid}
+	</select>
+	
+	
+	
+	<update id="abandonOrder" parameterType="map">
+		update
+		tower_order_detail
+		set
+		Tower_state=#{state},
+		Tower_abandon_time=GETDATE()
+		where ID=#{orderid};
+	</update>
+	
+	<update id="updateTargetAddress" parameterType="map">
+		update tower_order_detail
+		set
+		Tower_state=#{state},
+		Tower_target_address=#{address},
+		Tower_target_gps=#{factgps},
+		Tower_apply_time=GETDATE()
+		where ID=#{orderid};
+	</update>
+	<update id="delayOrder" parameterType="map">
+		update tower_order_detail
+		set
+		Tower_state=#{state},
+		Tower_yq_count=Tower_yq_count+1,
+		Tower_delay_reason=#{delayreason},
+		Tower_apply_time=GETDATE()
+		where
+		ID=#{orderid};
+	</update>
+
+	<update id="postOrder" parameterType="map">
+		update tower_order_detail
+		set
+		Tower_state=#{state},
+		Tower_end_date=GETDATE()
+		where ID=#{orderid};
+	</update>
+	<update id="abandonOrder" parameterType="map">
+		update
+		tower_order_detail
+		set
+		Tower_state=#{state},
+		Tower_abandon_time=GETDATE()
+		where ID=#{orderid};
+	</update>
+
+
+
+</mapper>

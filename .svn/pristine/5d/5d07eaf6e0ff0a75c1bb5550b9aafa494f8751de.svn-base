@@ -1,0 +1,182 @@
+package com.bolion.tower.service.impl;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import javax.jws.soap.SOAPBinding;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.bolion.common.TowerConfig;
+import com.bolion.common.TowerScore;
+import com.bolion.common.bean.Score;
+import com.bolion.common.mapper.SettingMapper;
+import com.bolion.common.service.impl.ScoreServiceImpl;
+import com.bolion.common.util.TimeUtil;
+import com.bolion.common.util.TowerUtil;
+import com.bolion.order.bean.UserOrderInfo;
+import com.bolion.order.mapper.OrderMapper;
+import com.bolion.tower.bean.Tower;
+import com.bolion.tower.bean.TowerBaseInfo;
+import com.bolion.tower.bean.TowerInfo;
+import com.bolion.tower.bean.TowerList;
+import com.bolion.tower.bean.TowerPage;
+import com.bolion.tower.bean.TowerReport;
+import com.bolion.tower.mapper.TowerMapper;
+import com.bolion.tower.service.TowerService;
+
+@Service
+public class TowerServiceImpl extends ScoreServiceImpl implements TowerService {
+
+	@Autowired
+	private TowerMapper towerMapper;
+
+	@Autowired
+	private OrderMapper orderMapper;
+	
+	@Autowired
+	private SettingMapper settingMapper;
+
+	@Override
+	public TowerList getTowers(TowerPage towerPage) {
+		TowerList towerList=new TowerList();
+		towerList.setTowers(towerMapper.getTowers(towerPage));
+		int count=towerMapper.getTowersCount(towerPage);
+		
+		//int ys=count%TowerConfig.tower_list_page_size>0?1:0;
+		towerList.setTowerpages(count);
+		String startname=towerPage.getTowercity()/100+TowerConfig.gsgsstarttimename;
+		String gstimename=towerPage.getTowercity()/100+TowerConfig.gstimename;
+		String gsstarttime=settingMapper.getSettingContent(startname);
+		String gstime=settingMapper.getSettingContent(gstimename);
+		if(gsstarttime!=null&&gstime!=null)
+		towerList.setGstime(TowerUtil.getTimeBalance(gsstarttime, gstime));
+		return towerList;
+	}
+
+	@Override
+	@Transactional
+	public TowerInfo getTowerInfo(Map map) {
+		TowerInfo towerInfo = towerMapper.getTowerInfo(map);
+		if (towerInfo == null)
+			return new TowerInfo();
+		int towerid = Integer.valueOf(map.get("towerid").toString());
+		int userid = Integer.valueOf(map.get("userid").toString());
+
+		// 站址查看次数+1
+		try {
+			int count = towerMapper.checkTowerReportExist(towerid);
+			TowerReport report = new TowerReport();
+			report.setTowerid(Integer.valueOf(towerid));
+			report.setViewcount(1);
+			if (count == 0) {
+				towerMapper.insertTowerReport(report);
+			} else {
+				towerMapper.upateTowerReport(report);
+
+			}
+		} catch (Exception e) {
+			System.out.println(e.getMessage());
+			System.out.println("ERROR : 查看详情时站址查看数量+1 ");
+		}
+		
+		
+		// 用户订单查看修改
+		try {
+			
+		
+		map.put("currentday", TimeUtil.getTimeAsFileName());
+		UserOrderInfo orderInfo = orderMapper.getUserOrderInfo(map);
+		if (orderInfo == null) {
+			// 积分+1 并更新查看站点查看id
+			// this.delSore(userid, t)
+			// 添加积分
+			Score score = new Score();
+			score.setUserid(userid);
+			score.setScorecount(TowerScore.score_see_tower);
+			score.setScorereason(TowerScore.score_reason_see_tower);
+			int count = updateUserScore(score);
+			if (count > 0) {
+				// 更新查看的消息ID
+				orderInfo = new UserOrderInfo();
+				orderInfo.setUserid(userid);
+				orderInfo.setSeetowerids(String.valueOf(towerid));
+				orderInfo.setSeetowerdate(TimeUtil.getTimeAsFileName());
+				count = orderMapper.updateUserOrder(orderInfo);
+			}
+
+		} else {
+			String seeTowers = orderInfo.getSeetowerids();
+			if (seeTowers == null)
+				seeTowers = "";
+			if (seeTowers.endsWith(","))
+				seeTowers = seeTowers.substring(0, seeTowers.length() - 1);
+			if (seeTowers.startsWith(",")) {
+				seeTowers = seeTowers.substring(1);
+			}
+			String[] sees = seeTowers.split(",");
+			if (sees.length < TowerConfig.tower_see_score_count) {
+				int i = 0;
+				for (i = 0; i < sees.length; i++) {
+					if (sees[i].equals(String.valueOf(towerid))) {
+						break;
+					}
+				}
+				if (i >= sees.length || sees.length == 0) {
+					// 积分+1 并更新查看站点查看id
+					seeTowers = seeTowers + "," + towerid;
+					// this.delSore(userid, String.valueOf(seeTowers));
+					Score score = new Score();
+					score.setUserid(userid);
+					score.setScorecount(TowerScore.score_see_tower);
+					score.setScorereason(TowerScore.score_reason_see_tower);
+					int count = updateUserScore(score);
+					if (count > 0) {
+						orderInfo = new UserOrderInfo();
+						orderInfo.setUserid(userid);
+						orderInfo.setSeetowerids(seeTowers);
+						orderInfo.setSeetowerdate(TimeUtil.getTimeAsFileName());
+						count = orderMapper.updateUserOrder(orderInfo);
+					}
+
+				}
+			}
+
+			// 跟新查看站点表
+		}
+		//
+		} catch (Exception e) {
+			System.out.println(e.getMessage());
+			System.out.println("ERROR : 查看详情时修改积分时 ");
+		}
+
+		return towerInfo;
+	}
+
+	@Override
+	public int updateTowerFavourite(int userid, int towerid, int state) {
+		Map<String, Integer> map = new HashMap<String, Integer>();
+		map.put("userid", userid);
+		map.put("towerid", towerid);
+		if (state == 0)
+			return towerMapper.deleteFavourite(map);
+		return towerMapper.insertFavourite(map);
+	}
+
+	@Override
+	public TowerBaseInfo getTowerBaseInfo(int towerid) {
+		return towerMapper.getTowerBaseInfo(towerid);
+	}
+
+	@Override
+	public int updateTowerState(int towerid, int state) {
+		Map<String, Integer> map = new HashMap<String, Integer>();
+		map.put("towerid", towerid);
+		map.put("state", state);
+		return towerMapper.updateTowerState(map);
+	}
+
+}

@@ -1,0 +1,85 @@
+package com.bolion.tower.mapper;
+
+import java.util.List;
+import java.util.Map;
+
+import com.bolion.tower.bean.Tower;
+import com.bolion.tower.bean.TowerBaseInfo;
+import com.bolion.tower.bean.TowerIndex;
+import com.bolion.tower.bean.TowerInfo;
+import com.bolion.tower.bean.TowerPage;
+import com.bolion.tower.bean.TowerReport;
+
+public interface TowerMapper {
+
+	/**
+	 * 获取站址列表
+	 * @param towerPage
+	 * @return
+	 */
+	public List<Tower> getTowers(TowerPage towerPage);
+	
+	/**
+	 * 获取站址个数
+	 * @param towerPage
+	 * @return
+	 */
+	public int getTowersCount(TowerPage towerPage);
+	
+	/**
+	 * 站址详情
+	 * @param map
+	 * @return
+	 */
+	public TowerInfo getTowerInfo(Map map);
+	
+	/**
+	 * 收藏站址
+	 * @param map
+	 * @return
+	 */
+	public int insertFavourite(Map map);
+	
+	/**
+	 * 取消收藏站址
+	 * @param map
+	 * @return
+	 */
+	public int deleteFavourite(Map map);
+	
+	
+	public int checkTowerReportExist(int towerid);
+	
+	public int upateTowerReport(TowerReport towerReport);
+	
+	public int insertTowerReport(TowerReport towerReport);
+
+	/*
+	 * 首页推荐站址列表
+	 */
+	public List<TowerIndex> getIndexOfferTowers(Map map);
+	
+	/**
+	 * 获取站址状态
+	 * @param towerid
+	 * @return
+	 */
+	public TowerBaseInfo getTowerBaseInfo(int towerid) ;
+	
+	/**
+	 * 修改站址状态
+	 * @param map
+	 * @return
+	 */
+	public int updateTowerState(Map map);
+	
+	/**
+	 * 首页站址搜索
+	 * @param searchMap
+	 * @return
+	 */
+	public List<TowerIndex> searchTowers(Map searchMap);
+	
+	public List<TowerIndex> searchbsTowers(Map searchMap);
+	
+}

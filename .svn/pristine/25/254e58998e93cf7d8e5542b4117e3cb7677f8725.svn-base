@@ -1,0 +1,87 @@
+package com.bolion.user.bean;
+
+public class UserIndex {
+	
+	private String name="";//用户名
+	
+	private String img="";//用户头像
+	
+	private int getnow;//：可提现
+	
+	private int  gettingnow;//提现中
+	
+	private int  charge;//：总积分
+	
+	private int allgetting;//：总提现
+	
+	private int userlevel;//：用户级别
+	
+	private int  score;//：积分
+
+	public String getName() {
+		return name;
+	}
+
+	public void setName(String name) {
+		this.name = name;
+	}
+
+	public String getImg() {
+		return img;
+	}
+
+	public void setImg(String img) {
+		this.img = img;
+	}
+
+	public int getGetnow() {
+		return getnow;
+	}
+
+	public void setGetnow(int getnow) {
+		this.getnow = getnow;
+	}
+
+	public int getGettingnow() {
+		return gettingnow;
+	}
+
+	public void setGettingnow(int gettingnow) {
+		this.gettingnow = gettingnow;
+	}
+
+	public int getCharge() {
+		return charge;
+	}
+
+	public void setCharge(int charge) {
+		this.charge = charge;
+	}
+
+	public int getAllgetting() {
+		return allgetting;
+	}
+
+	public void setAllgetting(int allgetting) {
+		this.allgetting = allgetting;
+	}
+
+	public int getUserlevel() {
+		return userlevel;
+	}
+
+	public void setUserlevel(int userlevel) {
+		this.userlevel = userlevel;
+	}
+
+	public int getScore() {
+		return score;
+	}
+
+	public void setScore(int score) {
+		this.score = score;
+	}
+	
+	
+
+}
