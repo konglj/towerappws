@@ -52,6 +52,7 @@ public class IndexServiceImpl implements IndexService{
 		map.put("cityid",cityid);
 		System.out.println(cityid);
 		
+		
 		map.put("showcount",TowerConfig.index_show_tower_count);
 		List<TowerIndex> offers=towerMapper.getIndexOfferTowers(map);
 		indexInfo.setOffers(offers);
